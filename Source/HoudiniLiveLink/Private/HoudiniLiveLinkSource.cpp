@@ -305,7 +305,7 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 					double Z = LocationArray[2]->AsNumber();
 					
 					// Houdini to Unreal: Swap Y/Z, meters to cm
-					BoneLocation = FVector(X, Z, Y) * TransformScale;
+					BoneLocation = FVector(X, -Y, Z) * TransformScale;
 				}
 
 				// Setup the transform using the location
@@ -338,7 +338,7 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 					double Z = LocationArray[2]->AsNumber();
 
 					// Houdini to Unreal: Swap Y/Z, meters to cm
-					BoneLocation = FVector(X, Z, Y) * TransformScale;
+					BoneLocation = FVector(X, -Y, Z) * TransformScale;
 				}
 				FrameData.Transforms[BoneIdx].SetLocation(BoneLocation);
 			}
@@ -355,20 +355,24 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 
 			// rotations (FRAME DATA) (GetSkeletonPose)
 			if (FrameData.Transforms.Num() <= 0)
-				FrameData.Transforms.Init(FTransform::Identity, ValueArray.Num());				
+				FrameData.Transforms.Init(FTransform::Identity, ValueArray.Num());
 
 			for (int BoneIdx = 0; BoneIdx < ValueArray.Num(); ++BoneIdx)
 			{
 				const TArray<TSharedPtr<FJsonValue>>& RotationArray = ValueArray[BoneIdx]->AsArray();
 
-				FQuat HRot = FQuat::Identity;
+				FQuat HQuat = FQuat::Identity;
 				if (RotationArray.Num() == 3)
 				{
 					double X = RotationArray[0]->AsNumber();
 					double Y = RotationArray[1]->AsNumber();
 					double Z = RotationArray[2]->AsNumber();
+
+					if (BoneIdx == 0)
+						X += 90.0f;
+
 					//HRot = FQuat::MakeFromEuler(FVector(X, Y, Z).RotateAngleAxis(-90.0f, FVector(0.0f, 1.0f, 0.0f)));
-					HRot = FQuat::MakeFromEuler(FVector(X, Y, Z));
+					HQuat = FQuat::MakeFromEuler(FVector(X, -Y, -Z));
 				}
 				else if (RotationArray.Num() == 4)
 				{
@@ -376,11 +380,14 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 					double Y = RotationArray[1]->AsNumber();
 					double Z = RotationArray[2]->AsNumber();
 					double W = RotationArray[3]->AsNumber();
-					HRot = FQuat(X, Y, Z, W);
+					HQuat = FQuat(X, Z, Y, -W);
 				}
+				
+				//FQuat UnrealQuat = FQuat(HQuat.X, HQuat.Z, HQuat.Y, -HQuat.W);
+				//UnrealQuat = UnrealQuat * FQuat::MakeFromEuler(FVector(0.f, 0.f, -90.f));
 
 				// Houdini to Unreal: Swap Y/Z, invert W
-				FrameData.Transforms[BoneIdx].SetRotation(FQuat(HRot.X, HRot.Z, HRot.Y, -HRot.W));
+				FrameData.Transforms[BoneIdx].SetRotation(HQuat);
 				//FrameData.Transforms[BoneIdx].SetRotation(FQuat(-HRot.X, -HRot.Z, -HRot.Y, HRot.W));
 			}
 

@@ -31,6 +31,7 @@
 #include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 
 class SEditableTextBox;
 
@@ -38,7 +39,7 @@ class SHoudiniLiveLinkSourceFactory : public SCompoundWidget
 {
 	public:
 
-		DECLARE_DELEGATE_OneParam(FOnOkClicked, FIPv4Endpoint);
+		DECLARE_DELEGATE_TwoParams(FOnOkClicked, FIPv4Endpoint, float);
 
 		SLATE_BEGIN_ARGS(SHoudiniLiveLinkSourceFactory){}
 			SLATE_EVENT(FOnOkClicked, OnOkClicked)
@@ -50,8 +51,15 @@ class SHoudiniLiveLinkSourceFactory : public SCompoundWidget
 
 		void OnEndpointChanged(const FText& NewValue, ETextCommit::Type);
 
+		void SetRefreshRate(float InRefreshRate);
+		TOptional<float> GetRefreshRate() const;
+
 		FReply OnOkClicked();
 
-		TWeakPtr<SEditableTextBox> EditabledText;
 		FOnOkClicked OkClicked;
+
+		TWeakPtr<SEditableTextBox> EditabledText;
+		TWeakPtr<SNumericEntryBox<float>> NumericValue;
+
+		float RefreshValue;
 };

@@ -41,19 +41,22 @@
 
 #define RECV_BUFFER_SIZE 1024 * 1024
 
-const float
-FHoudiniLiveLinkSource::UpdateFrequency = 0.1f;
-
 const double
-FHoudiniLiveLinkSource::TransformScale = 1.0; //100.0;
+FHoudiniLiveLinkSource::TransformScale = 1.0;
 
-FHoudiniLiveLinkSource::FHoudiniLiveLinkSource(FIPv4Endpoint InEndpoint)
-	: Stopping(false)	
+FHoudiniLiveLinkSource::FHoudiniLiveLinkSource(FIPv4Endpoint InEndpoint, float InRefreshRate)
+	: Stopping(false)
 	, Thread(nullptr)
 	, SkeletonSetupNeeded(true)
 {
 	// defaults
 	DeviceEndpoint = InEndpoint;
+
+	UpdateFrequency = 0.1f;
+	if (InRefreshRate > 0.0f)
+	{
+		UpdateFrequency = 1 / InRefreshRate;
+	}
 
 	SourceStatus = LOCTEXT("SourceStatus_DeviceNotFound", "Device Not Found");
 	SourceType = LOCTEXT("HoudiniLiveLinkSourceType", "Houdini LiveLink");
@@ -83,15 +86,13 @@ FHoudiniLiveLinkSource::ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceG
 	SourceGuid = InSourceGuid;
 }
 
-
 bool 
 FHoudiniLiveLinkSource::IsSourceStillValid() const
 {
 	// Source is valid if we have a valid thread and socket
-	bool bIsSourceValid = !Stopping && Thread != nullptr;// && Socket != nullptr;
+	bool bIsSourceValid = !Stopping && Thread != nullptr;
 	return bIsSourceValid;
 }
-
 
 bool 
 FHoudiniLiveLinkSource::RequestSourceShutdown()
@@ -215,7 +216,11 @@ FHoudiniLiveLinkSource::OnSkeletonPoseReceived(FHttpRequestPtr HttpRequest, FHtt
 
 bool 
 FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
-{	
+{
+	// No need to process the data if we're stopping
+	if(Stopping || !Thread)
+		return false;
+
 	TSharedPtr<FJsonObject> JsonObject;
 	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ReceivedData);
 	if (!FJsonSerializer::Deserialize(Reader, JsonObject))
@@ -229,19 +234,6 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 
 	// Update is done via GetSkeletonPose, and has:
 	// position (FVector Array), rotations (FVector Array), Names (String Array)
-
-	/*
-	bool bIsSetupData = false;
-	for (TPair<FString, TSharedPtr<FJsonValue>>& JsonField : JsonObject->Values)
-	{
-		if (JsonField.Key.Equals(TEXT("parents"), ESearchCase::IgnoreCase)
-			|| JsonField.Key.Equals(TEXT("vertices"), ESearchCase::IgnoreCase))
-		{
-			bIsSetupData = true;
-			break;
-		}
-	}
-	*/
 
 	// Static Data 
 	bool bStaticDataUpdated = false;
@@ -426,10 +418,14 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 			bFrameDataUpdated = true;
 		}
 	}
-		
+
+	// Make sure the soruce is still valid before attempting to update the client data
+	if (!IsSourceStillValid())
+		return false;
+
 	FName SubjectName(TEXT("Houdini Subject"));
 	if (bStaticDataUpdated && SkeletonSetupNeeded)
-	{		
+	{
 		// Only update the static data if the skeleton setup is required!
 		Client->PushSubjectStaticData_AnyThread({ SourceGuid, SubjectName }, ULiveLinkAnimationRole::StaticClass(), MoveTemp(StaticDataStruct));
 	}

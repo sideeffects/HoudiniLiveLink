@@ -41,7 +41,7 @@ class HOUDINILIVELINK_API FHoudiniLiveLinkSource : public ILiveLinkSource, publi
 {
 	public:
 
-		FHoudiniLiveLinkSource(FIPv4Endpoint Endpoint);
+		FHoudiniLiveLinkSource(FIPv4Endpoint Endpoint, float InRefreshRate);
 
 		virtual ~FHoudiniLiveLinkSource();
 
@@ -108,7 +108,7 @@ class HOUDINILIVELINK_API FHoudiniLiveLinkSource : public ILiveLinkSource, publi
 		bool SkeletonSetupNeeded;
 
 		// Frequency update (sleep time between each update)
-		static const float UpdateFrequency;
+		 float UpdateFrequency;
 
 		// Transform scale (m -> cm ??)
 		static const double TransformScale;

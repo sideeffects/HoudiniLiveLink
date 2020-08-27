@@ -58,13 +58,13 @@ UHoudiniLiveLinkSourceFactory::CreateSource(const FString& InConnectionString) c
 		return TSharedPtr<ILiveLinkSource>();
 	}
 
-	return MakeShared<FHoudiniLiveLinkSource>(DeviceEndPoint);
+	return MakeShared<FHoudiniLiveLinkSource>(DeviceEndPoint, 60.0f);
 }
 
 void 
-UHoudiniLiveLinkSourceFactory::OnOkClicked(FIPv4Endpoint InEndpoint, FOnLiveLinkSourceCreated InOnLiveLinkSourceCreated) const
+UHoudiniLiveLinkSourceFactory::OnOkClicked(FIPv4Endpoint InEndpoint, float InRefreshRate, FOnLiveLinkSourceCreated InOnLiveLinkSourceCreated) const
 {
-	InOnLiveLinkSourceCreated.ExecuteIfBound(MakeShared<FHoudiniLiveLinkSource>(InEndpoint), InEndpoint.ToString());
+	InOnLiveLinkSourceCreated.ExecuteIfBound(MakeShared<FHoudiniLiveLinkSource>(InEndpoint, InRefreshRate), InEndpoint.ToString());
 }
 
 #undef LOCTEXT_NAMESPACE

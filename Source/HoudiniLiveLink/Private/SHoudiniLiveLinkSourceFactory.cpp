@@ -44,6 +44,9 @@ SHoudiniLiveLinkSourceFactory::Construct(const FArguments& Args)
 	Endpoint.Address = FIPv4Address::InternalLoopback;
 	Endpoint.Port = 8010;
 
+	// Default to 60Fps
+	RefreshValue = 60.0f;
+
 	ChildSlot
 	[
 		SNew(SBox)
@@ -51,6 +54,7 @@ SHoudiniLiveLinkSourceFactory::Construct(const FArguments& Args)
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
+			.Padding(2, 2, 5, 2)
 			.AutoHeight()
 			[
 				SNew(SHorizontalBox)
@@ -59,7 +63,7 @@ SHoudiniLiveLinkSourceFactory::Construct(const FArguments& Args)
 				.FillWidth(0.5f)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("JSONPortNumber", "Port Number"))
+					.Text(LOCTEXT("HoudiniLLPortNumber", "Port Number"))
 				]
 				+ SHorizontalBox::Slot()
 				.HAlign(HAlign_Fill)
@@ -71,6 +75,33 @@ SHoudiniLiveLinkSourceFactory::Construct(const FArguments& Args)
 				]
 			]
 			+ SVerticalBox::Slot()
+			.Padding(2, 2, 5, 2)
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.FillWidth(0.5f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("HoudiniLLRefresh", "Refresh Rate (fps)"))
+				]
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.FillWidth(0.5f)
+				[
+					SAssignNew(NumericValue, SNumericEntryBox<float>)
+					.AllowSpin(true)
+					.MinValue(0.1)
+					.MinSliderValue(0.1)
+					.MaxSliderValue(144)
+					.Value(this, &SHoudiniLiveLinkSourceFactory::GetRefreshRate)
+					.OnValueChanged(this, &SHoudiniLiveLinkSourceFactory::SetRefreshRate)
+					.SliderExponent(1.0f)
+				]
+			]
+			+ SVerticalBox::Slot()
+			.Padding(2, 2, 5, 2)
 			.HAlign(HAlign_Right)
 			.AutoHeight()
 			[
@@ -78,7 +109,7 @@ SHoudiniLiveLinkSourceFactory::Construct(const FArguments& Args)
 				.OnClicked(this, &SHoudiniLiveLinkSourceFactory::OnOkClicked)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("Ok", "Ok"))
+					.Text(LOCTEXT("Add", "Add Source"))
 				]
 			]
 		]
@@ -101,6 +132,19 @@ SHoudiniLiveLinkSourceFactory::OnEndpointChanged(const FText& NewValue, ETextCom
 	}
 }
 
+
+void 
+SHoudiniLiveLinkSourceFactory::SetRefreshRate(float InRefreshRate)
+{
+	RefreshValue = InRefreshRate;
+}
+
+TOptional<float> 
+SHoudiniLiveLinkSourceFactory::GetRefreshRate() const
+{
+	return RefreshValue;
+}
+
 FReply
 SHoudiniLiveLinkSourceFactory::OnOkClicked()
 {
@@ -110,7 +154,7 @@ SHoudiniLiveLinkSourceFactory::OnOkClicked()
 		FIPv4Endpoint Endpoint;
 		if (FIPv4Endpoint::Parse(EditabledTextPin->GetText().ToString(), Endpoint))
 		{
-			OkClicked.ExecuteIfBound(Endpoint);
+			OkClicked.ExecuteIfBound(Endpoint, RefreshValue);
 		}
 	}
 	return FReply::Handled();

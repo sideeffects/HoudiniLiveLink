@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "HoudiniLiveLink",
-	"Description": "LiveLink Source for receiving data from Houdini via the Houdini Webserver",
+	"Description": "LiveLink Source for receiving animation data from Houdini/KineFX via the Houdini Webserver",
 	"Category": "Animation",
 	"CreatedBy": "Side FX Software",
 	"CreatedByURL": "https://www.sidefx.com",
@@ -11,7 +11,7 @@
 	"MarketplaceURL": "",
 	"SupportURL": "",
 	"CanContainContent": true,
-	"IsBetaVersion": true,
+	"IsBetaVersion": false,
 	"Installed": false,
 	"Modules": 
 	[

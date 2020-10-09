@@ -39,7 +39,7 @@ UHoudiniLiveLinkSourceFactory::GetSourceDisplayName() const
 FText 
 UHoudiniLiveLinkSourceFactory::GetSourceTooltip() const
 {
-	return LOCTEXT("SourceTooltip", "Creates a connection to Houdini");
+	return LOCTEXT("SourceTooltip", "Creates a LiveLink connection to Houdini");
 }
 
 TSharedPtr<SWidget> 

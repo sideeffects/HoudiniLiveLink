@@ -98,6 +98,7 @@ bool
 FHoudiniLiveLinkSource::RequestSourceShutdown()
 {
 	Stop();
+	SourceStatus = LOCTEXT("SourceStatus_Stopped", "Stopped");
 
 	return true;
 }
@@ -360,27 +361,23 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 					double Y = RotationArray[1]->AsNumber();
 					double Z = RotationArray[2]->AsNumber();
 
+					// Houdini to Unreal conversion
 					if (BoneIdx == 0)
 						X += 90.0f;
 
-					//HRot = FQuat::MakeFromEuler(FVector(X, Y, Z).RotateAngleAxis(-90.0f, FVector(0.0f, 1.0f, 0.0f)));
 					HQuat = FQuat::MakeFromEuler(FVector(X, -Y, -Z));
 				}
 				else if (RotationArray.Num() == 4)
 				{
+					// TODO: untested, the livelink HDA doesnot send quaternions for now
 					double X = RotationArray[0]->AsNumber();
 					double Y = RotationArray[1]->AsNumber();
 					double Z = RotationArray[2]->AsNumber();
 					double W = RotationArray[3]->AsNumber();
 					HQuat = FQuat(X, Z, Y, -W);
 				}
-				
-				//FQuat UnrealQuat = FQuat(HQuat.X, HQuat.Z, HQuat.Y, -HQuat.W);
-				//UnrealQuat = UnrealQuat * FQuat::MakeFromEuler(FVector(0.f, 0.f, -90.f));
 
-				// Houdini to Unreal: Swap Y/Z, invert W
 				FrameData.Transforms[BoneIdx].SetRotation(HQuat);
-				//FrameData.Transforms[BoneIdx].SetRotation(FQuat(-HRot.X, -HRot.Z, -HRot.Y, HRot.W));
 			}
 
 			bFrameDataUpdated = true;
@@ -419,7 +416,7 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 		}
 	}
 
-	// Make sure the soruce is still valid before attempting to update the client data
+	// Make sure the source is still valid before attempting to update the client data
 	if (!IsSourceStillValid())
 		return false;
 

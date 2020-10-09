@@ -84,8 +84,7 @@ class HOUDINILIVELINK_API FHoudiniLiveLinkSource : public ILiveLinkSource, publi
 		// Our identifier in LiveLink
 		FGuid SourceGuid;
 
-		//FMessageAddress ConnectionAddress;
-
+		// Source Infos
 		FText SourceType;
 		FText SourceMachineName;
 		FText SourceStatus;
@@ -102,14 +101,13 @@ class HOUDINILIVELINK_API FHoudiniLiveLinkSource : public ILiveLinkSource, publi
 		// Name of the sockets thread
 		FString ThreadName;
 
-		// List of subjects we've already encountered
-		//TSet<FName> EncounteredSubjects;
-
+		// Indicates that the skeleton needs to be setup from houdini first
 		bool SkeletonSetupNeeded;
 
 		// Frequency update (sleep time between each update)
-		 float UpdateFrequency;
+		float UpdateFrequency;
 
-		// Transform scale (m -> cm ??)
+		// Transform scale
+		// currently unused
 		static const double TransformScale;
 };

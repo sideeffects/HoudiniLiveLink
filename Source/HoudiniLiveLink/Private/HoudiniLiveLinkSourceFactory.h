@@ -48,5 +48,5 @@ class UHoudiniLiveLinkSourceFactory : public ULiveLinkSourceFactory
 	
 	private:
 
-		void OnOkClicked(FIPv4Endpoint Endpoint, float InRefreshRate, FOnLiveLinkSourceCreated OnLiveLinkSourceCreated) const;
+		void OnOkClicked(FIPv4Endpoint Endpoint, float InRefreshRate, FString InSubjectName, FOnLiveLinkSourceCreated OnLiveLinkSourceCreated) const;
 };

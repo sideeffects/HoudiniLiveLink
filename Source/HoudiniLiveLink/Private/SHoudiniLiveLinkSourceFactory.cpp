@@ -47,6 +47,9 @@ SHoudiniLiveLinkSourceFactory::Construct(const FArguments& Args)
 	// Default to 60Fps
 	RefreshValue = 60.0f;
 
+	// Default to HoudiniSubject
+	SubjectName = TEXT("Houdini Subject");
+
 	ChildSlot
 	[
 		SNew(SBox)
@@ -69,9 +72,30 @@ SHoudiniLiveLinkSourceFactory::Construct(const FArguments& Args)
 				.HAlign(HAlign_Fill)
 				.FillWidth(0.5f)
 				[
-					SAssignNew(EditabledText, SEditableTextBox)
+					SAssignNew(PortEditabledText, SEditableTextBox)
 					.Text(FText::FromString(Endpoint.ToString()))
 					.OnTextCommitted(this, &SHoudiniLiveLinkSourceFactory::OnEndpointChanged)
+				]
+			]
+			+ SVerticalBox::Slot()
+			.Padding(2, 2, 5, 2)
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.FillWidth(0.5f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("HoudiniLLSubjectName", "Subject Name"))
+				]
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.FillWidth(0.5f)
+				[
+					SAssignNew(NameEditabledText, SEditableTextBox)
+					.Text(FText::FromString(SubjectName))
+					.OnTextCommitted(this, &SHoudiniLiveLinkSourceFactory::OnNameChanged)
 				]
 			]
 			+ SVerticalBox::Slot()
@@ -119,7 +143,7 @@ SHoudiniLiveLinkSourceFactory::Construct(const FArguments& Args)
 void 
 SHoudiniLiveLinkSourceFactory::OnEndpointChanged(const FText& NewValue, ETextCommit::Type)
 {
-	TSharedPtr<SEditableTextBox> EditabledTextPin = EditabledText.Pin();
+	TSharedPtr<SEditableTextBox> EditabledTextPin = PortEditabledText.Pin();
 	if (EditabledTextPin.IsValid())
 	{
 		FIPv4Endpoint Endpoint;
@@ -132,6 +156,23 @@ SHoudiniLiveLinkSourceFactory::OnEndpointChanged(const FText& NewValue, ETextCom
 	}
 }
 
+
+void
+SHoudiniLiveLinkSourceFactory::OnNameChanged(const FText& NewValue, ETextCommit::Type)
+{
+	TSharedPtr<SEditableTextBox> EditabledTextPin = NameEditabledText.Pin();
+	if (EditabledTextPin.IsValid())
+	{
+		FString NewName = NewValue.ToString();
+		if (NewName.IsEmpty())
+		{
+			NewName = TEXT("Houdini Subject");
+			EditabledTextPin->SetText(FText::FromString(NewName));
+		}
+
+		SubjectName = NewName;
+	}
+}
 
 void 
 SHoudiniLiveLinkSourceFactory::SetRefreshRate(float InRefreshRate)
@@ -148,13 +189,13 @@ SHoudiniLiveLinkSourceFactory::GetRefreshRate() const
 FReply
 SHoudiniLiveLinkSourceFactory::OnOkClicked()
 {
-	TSharedPtr<SEditableTextBox> EditabledTextPin = EditabledText.Pin();
+	TSharedPtr<SEditableTextBox> EditabledTextPin = PortEditabledText.Pin();
 	if (EditabledTextPin.IsValid())
 	{
 		FIPv4Endpoint Endpoint;
 		if (FIPv4Endpoint::Parse(EditabledTextPin->GetText().ToString(), Endpoint))
 		{
-			OkClicked.ExecuteIfBound(Endpoint, RefreshValue);
+			OkClicked.ExecuteIfBound(Endpoint, RefreshValue, SubjectName);
 		}
 	}
 	return FReply::Handled();

@@ -44,7 +44,7 @@
 const double
 FHoudiniLiveLinkSource::TransformScale = 1.0;
 
-FHoudiniLiveLinkSource::FHoudiniLiveLinkSource(FIPv4Endpoint InEndpoint, float InRefreshRate)
+FHoudiniLiveLinkSource::FHoudiniLiveLinkSource(FIPv4Endpoint InEndpoint, const float& InRefreshRate, const FString& InSubjectName)
 	: Stopping(false)
 	, Thread(nullptr)
 	, SkeletonSetupNeeded(true)
@@ -61,6 +61,11 @@ FHoudiniLiveLinkSource::FHoudiniLiveLinkSource(FIPv4Endpoint InEndpoint, float I
 	SourceStatus = LOCTEXT("SourceStatus_DeviceNotFound", "Device Not Found");
 	SourceType = LOCTEXT("HoudiniLiveLinkSourceType", "Houdini LiveLink");
 	SourceMachineName = LOCTEXT("HoudiniLiveLinkSourceMachineName", "localhost");
+
+	// Default subject name
+	SubjectName = TEXT("Houdini Subject");
+	if (!InSubjectName.IsEmpty())
+		SubjectName = FName(*InSubjectName);
 
 	{
 		Start();
@@ -420,7 +425,6 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 	if (!IsSourceStillValid())
 		return false;
 
-	FName SubjectName(TEXT("Houdini Subject"));
 	if (bStaticDataUpdated && SkeletonSetupNeeded)
 	{
 		// Only update the static data if the skeleton setup is required!

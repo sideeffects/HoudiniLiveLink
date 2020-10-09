@@ -39,7 +39,7 @@ class SHoudiniLiveLinkSourceFactory : public SCompoundWidget
 {
 	public:
 
-		DECLARE_DELEGATE_TwoParams(FOnOkClicked, FIPv4Endpoint, float);
+		DECLARE_DELEGATE_ThreeParams(FOnOkClicked, FIPv4Endpoint, float, FString);
 
 		SLATE_BEGIN_ARGS(SHoudiniLiveLinkSourceFactory){}
 			SLATE_EVENT(FOnOkClicked, OnOkClicked)
@@ -51,6 +51,8 @@ class SHoudiniLiveLinkSourceFactory : public SCompoundWidget
 
 		void OnEndpointChanged(const FText& NewValue, ETextCommit::Type);
 
+		void OnNameChanged(const FText& NewValue, ETextCommit::Type);
+
 		void SetRefreshRate(float InRefreshRate);
 		TOptional<float> GetRefreshRate() const;
 
@@ -58,8 +60,11 @@ class SHoudiniLiveLinkSourceFactory : public SCompoundWidget
 
 		FOnOkClicked OkClicked;
 
-		TWeakPtr<SEditableTextBox> EditabledText;
+		TWeakPtr<SEditableTextBox> PortEditabledText;
+		TWeakPtr<SEditableTextBox> NameEditabledText;
 		TWeakPtr<SNumericEntryBox<float>> NumericValue;
 
 		float RefreshValue;
+
+		FString SubjectName;
 };

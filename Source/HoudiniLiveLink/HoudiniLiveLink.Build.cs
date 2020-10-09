@@ -39,21 +39,21 @@ public class HoudiniLiveLink : ModuleRules
 				"LiveLinkInterface",
 				"Messaging",
 			}
-        );
+		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"CoreUObject",
 				"Engine",
-                "HTTP",
-                "InputCore",
+				"HTTP",
+				"InputCore",
 				"Json",
 				"JsonUtilities",
 				"Networking",
 				"Slate",
 				"SlateCore",
 			}
-        );
+		);
 	}
 }

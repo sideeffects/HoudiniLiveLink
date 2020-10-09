@@ -41,7 +41,7 @@ class HOUDINILIVELINK_API FHoudiniLiveLinkSource : public ILiveLinkSource, publi
 {
 	public:
 
-		FHoudiniLiveLinkSource(FIPv4Endpoint Endpoint, float InRefreshRate);
+		FHoudiniLiveLinkSource(FIPv4Endpoint Endpoint, const float& InRefreshRate, const FString& InSubjectName);
 
 		virtual ~FHoudiniLiveLinkSource();
 
@@ -88,6 +88,8 @@ class HOUDINILIVELINK_API FHoudiniLiveLinkSource : public ILiveLinkSource, publi
 		FText SourceType;
 		FText SourceMachineName;
 		FText SourceStatus;
+
+		FName SubjectName;
 
 		// Machine/Port we're connected to
 		FIPv4Endpoint DeviceEndpoint;

@@ -153,7 +153,7 @@ FHoudiniLiveLinkSource::SendGetSkeleton()
 	// TODO: Create once and store as member? then just call process?
 	FString URL = DeviceEndpoint.ToString() + TEXT("/get_skeleton");
 
-	TSharedRef<IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 	HttpRequest->SetVerb("GET");
 	HttpRequest->SetHeader("Content-Type", "application/json");
 	HttpRequest->SetURL(*FString::Printf(TEXT("%s"), *URL));
@@ -168,7 +168,7 @@ FHoudiniLiveLinkSource::SendGetSkeletonPose()
 	// TODO: Create once and store as member? then just call process?
 	FString URL = DeviceEndpoint.ToString() + TEXT("/get_skeleton_pose");
 
-	TSharedRef<IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 	HttpRequest->SetVerb("GET");
 	HttpRequest->SetHeader("Content-Type", "application/json");
 	HttpRequest->SetURL(*FString::Printf(TEXT("%s"), *URL));

@@ -1,8 +1,8 @@
-# HoudiniLiveLink
+# Houdini KineFX Live Link
 
-LiveLink Plugin for Houdini and Unreal Engine
+LiveLink Plugin for Houdini KineFX and Unreal Engine
 
-The Houdini Live Link plugin can be used to let you control rigs in Unreal directly from Houdini.
+The Houdini KineFX Live Link plugin can be used to let you control rigs in Unreal directly from KineFX in Houdini.
 
 After installing the plugin, a new "Houdini Live Link" source will be available.
 The LiveLink plugin should be used with the "ue4_livelink" HDA, that is available in the plugin's content directory.

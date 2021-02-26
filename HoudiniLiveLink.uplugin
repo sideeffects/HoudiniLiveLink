@@ -2,7 +2,7 @@
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "1.0",
-	"FriendlyName": "HoudiniLiveLink",
+	"FriendlyName": "Houdini KineFX Live Link",
 	"Description": "LiveLink Source for receiving animation data from Houdini/KineFX via the Houdini Webserver",
 	"Category": "Animation",
 	"CreatedBy": "Side FX Software",

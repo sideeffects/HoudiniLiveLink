@@ -113,6 +113,8 @@ void
 FHoudiniLiveLinkSource::Start()
 {
 	SkeletonSetupNeeded = true;
+	NumBones = -1;
+	NumCurves = -1;
 
 	ThreadName = "Houdini Live Link ";
 	ThreadName.AppendInt(FAsyncThreadIndex::GetNext());
@@ -130,6 +132,8 @@ FHoudiniLiveLinkSource::Stop()
 uint32
 FHoudiniLiveLinkSource::Run()
 {	
+	// it would probably be better to make a request and wait for
+	// a response before making another, instead of just making a ton
 	while (!Stopping)
 	{
 		if (SkeletonSetupNeeded)
@@ -314,11 +318,9 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 		}
 		else if (JsonField.Key.Equals(TEXT("positions"), ESearchCase::IgnoreCase))
 		{
-			/*
 			// Check the validity of the data we received
-			if (ValueArray.Num() != StaticData.BoneNames.Num())
+			if (!SkeletonSetupNeeded && ValueArray.Num() != NumBones)
 				return false;
-			*/
 
 			// positions (FRAME DATA) (GetSkeletonPose)
 			if(FrameData.Transforms.Num() <= 0)
@@ -345,11 +347,9 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 		}
 		else if (JsonField.Key.Equals(TEXT("rotations"), ESearchCase::IgnoreCase))
 		{
-			/*
 			// Check the validity of the data we received
-			if (ValueArray.Num() != StaticData.BoneNames.Num())
+			if (!SkeletonSetupNeeded && ValueArray.Num() != NumBones)
 				return false;
-			*/
 
 			// rotations (FRAME DATA) (GetSkeletonPose)
 			if (FrameData.Transforms.Num() <= 0)
@@ -389,11 +389,9 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 		}
 		else if (JsonField.Key.Equals(TEXT("scales"), ESearchCase::IgnoreCase))
 		{
-			/*
 			// Check the validity of the data we received
-			if (ValueArray.Num() != StaticData.BoneNames.Num())
+			if (!SkeletonSetupNeeded && ValueArray.Num() != NumBones)
 				return false;
-			*/
 
 			// scale (FRAME DATA) (GetSkeletonPose)
 			if (FrameData.Transforms.Num() <= 0)
@@ -419,6 +417,32 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 
 			bFrameDataUpdated = true;
 		}
+		else if (JsonField.Key.Equals(TEXT("blendshape_names"), ESearchCase::IgnoreCase))
+		{
+			StaticData.PropertyNames.Empty(ValueArray.Num());
+
+			for (int i = 0; i < ValueArray.Num(); ++i)
+			{
+				StaticData.PropertyNames.Add(FName(ValueArray[i]->AsString()));
+			}
+
+			bStaticDataUpdated = true;
+		}
+		else if (JsonField.Key.Equals(TEXT("blendshape_values"), ESearchCase::IgnoreCase))
+		{
+			// Check the validity of the data we received
+			if (!SkeletonSetupNeeded && ValueArray.Num() != NumCurves)
+				return false;
+
+			FrameData.PropertyValues.Empty(ValueArray.Num());
+
+			for (int i = 0; i < ValueArray.Num(); ++i)
+			{
+				FrameData.PropertyValues.Add(ValueArray[i]->AsNumber());
+			}
+
+			bFrameDataUpdated = true;
+		}
 	}
 
 	// Make sure the source is still valid before attempting to update the client data
@@ -428,6 +452,8 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 	if (bStaticDataUpdated && SkeletonSetupNeeded)
 	{
 		// Only update the static data if the skeleton setup is required!
+		NumBones = StaticData.BoneNames.Num();
+		NumCurves = StaticData.PropertyNames.Num();
 		Client->PushSubjectStaticData_AnyThread({ SourceGuid, SubjectName }, ULiveLinkAnimationRole::StaticClass(), MoveTemp(StaticDataStruct));
 	}
 

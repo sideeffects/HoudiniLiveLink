@@ -90,6 +90,9 @@ class HOUDINILIVELINK_API FHoudiniLiveLinkSource : public ILiveLinkSource, publi
 		FText SourceStatus;
 
 		FName SubjectName;
+		
+		int NumBones;
+		int NumCurves;
 
 		// Machine/Port we're connected to
 		FIPv4Endpoint DeviceEndpoint;

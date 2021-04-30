@@ -51,6 +51,7 @@ public class HoudiniLiveLink : ModuleRules
 				"Json",
 				"JsonUtilities",
 				"Networking",
+				"Sockets",
 				"Slate",
 				"SlateCore",
 			}

@@ -30,6 +30,8 @@
 #include "LiveLinkTypes.h"
 #include "Roles/LiveLinkAnimationRole.h"
 #include "Roles/LiveLinkAnimationTypes.h"
+#include "Common/UdpSocketBuilder.h"
+#include "Sockets.h"
 
 #include "Async/Async.h"
 #include "HAL/RunnableThread.h"
@@ -129,100 +131,39 @@ FHoudiniLiveLinkSource::Stop()
 	SkeletonSetupNeeded = true;
 }
 
+const int BUFFER_SIZE = 65536;
 uint32
 FHoudiniLiveLinkSource::Run()
-{	
-	// it would probably be better to make a request and wait for
-	// a response before making another, instead of just making a ton
-	while (!Stopping)
-	{
-		if (SkeletonSetupNeeded)
-		{
-			SendGetSkeleton();
-		}
-		else
-		{
-			SendGetSkeletonPose();
-		}
+{
+	FUdpSocketBuilder builder("Houdini Live Link Receiver");
+	builder.AsBlocking();
+	builder.AsReusable();
+	builder.BoundToAddress(FIPv4Address::Any);
+	builder.BoundToPort(DeviceEndpoint.Port);
+	builder.WithReceiveBufferSize(BUFFER_SIZE);
 
-		// We want to yield for a bit.
-		FPlatformProcess::SleepNoStats(UpdateFrequency);
+	char buf[BUFFER_SIZE];
+	
+	FSocket* socket = builder.Build();
+	if (socket)
+	{
+		if (socket->GetConnectionState() != ESocketConnectionState::SCS_Connected)
+			return 0;
+		
+		while (!Stopping)
+		{
+			int32 num_read;
+			if (socket->Wait(ESocketWaitConditions::WaitForRead, 100))
+			{
+				socket->Recv((uint8*)buf, BUFFER_SIZE, num_read, ESocketReceiveFlags::None);
+				
+				SkeletonSetupNeeded = !ProcessResponseData(FString(num_read, buf));
+			}
+		}
+		socket->Close();
 	}
 	return 0;
 }
-
-void 
-FHoudiniLiveLinkSource::SendGetSkeleton()
-{
-	// TODO: Create once and store as member? then just call process?
-	FString URL = DeviceEndpoint.ToString() + TEXT("/get_skeleton");
-
-	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
-	HttpRequest->SetVerb("GET");
-	HttpRequest->SetHeader("Content-Type", "application/json");
-	HttpRequest->SetURL(*FString::Printf(TEXT("%s"), *URL));
-	HttpRequest->OnProcessRequestComplete().BindRaw(this, &FHoudiniLiveLinkSource::OnSkeletonReceived);
-
-	HttpRequest->ProcessRequest();
-}
-
-void
-FHoudiniLiveLinkSource::SendGetSkeletonPose()
-{
-	// TODO: Create once and store as member? then just call process?
-	FString URL = DeviceEndpoint.ToString() + TEXT("/get_skeleton_pose");
-
-	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
-	HttpRequest->SetVerb("GET");
-	HttpRequest->SetHeader("Content-Type", "application/json");
-	HttpRequest->SetURL(*FString::Printf(TEXT("%s"), *URL));
-	HttpRequest->OnProcessRequestComplete().BindRaw(this, &FHoudiniLiveLinkSource::OnSkeletonPoseReceived);
-
-	HttpRequest->ProcessRequest();
-}
-
-void 
-FHoudiniLiveLinkSource::OnSkeletonReceived(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
-{
-	if (!bSucceeded || !HttpResponse.IsValid())
-		return;
-
-	if (!EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
-		return;
-
-	// We've already setup the skeleton
-	if (!SkeletonSetupNeeded)
-		return;
-
-	FString ResponseString = HttpResponse->GetContentAsString();
-	if (!ProcessResponseData(ResponseString))
-	{
-		SkeletonSetupNeeded = true;
-	}
-	else
-	{
-		SkeletonSetupNeeded = false;
-	}
-}
-
-void 
-FHoudiniLiveLinkSource::OnSkeletonPoseReceived(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
-{
-	if (!bSucceeded || !HttpResponse.IsValid())
-		return;
-
-	if (!EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
-		return;
-
-	FString ResponseString = HttpResponse->GetContentAsString();
-	if (!ProcessResponseData(ResponseString))
-	{
-		// We have received invalid data
-		// Try to setup the skeleton again
-		SkeletonSetupNeeded = true;
-	}
-}
-
 
 bool 
 FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
@@ -349,7 +290,7 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 		{
 			// Check the validity of the data we received
 			if (!SkeletonSetupNeeded && ValueArray.Num() != NumBones)
-				return false;
+			 	return false;
 
 			// rotations (FRAME DATA) (GetSkeletonPose)
 			if (FrameData.Transforms.Num() <= 0)

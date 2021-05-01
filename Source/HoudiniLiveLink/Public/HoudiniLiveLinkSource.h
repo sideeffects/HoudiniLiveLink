@@ -32,8 +32,6 @@
 #include "IMessageContext.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 
-#include "Interfaces/IHttpRequest.h"
-
 class FRunnableThread;
 class ILiveLinkClient;
 
@@ -70,12 +68,6 @@ class HOUDINILIVELINK_API FHoudiniLiveLinkSource : public ILiveLinkSource, publi
 		// End FRunnable Interface
 
 		bool ProcessResponseData(const FString& ReceivedData);
-
-		void SendGetSkeleton();
-		void SendGetSkeletonPose();
-
-		void OnSkeletonReceived(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded);
-		void OnSkeletonPoseReceived(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded);
 
 	private:
 

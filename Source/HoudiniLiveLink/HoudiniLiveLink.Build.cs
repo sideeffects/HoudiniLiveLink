@@ -46,7 +46,6 @@ public class HoudiniLiveLink : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
-				"HTTP",
 				"InputCore",
 				"Json",
 				"JsonUtilities",

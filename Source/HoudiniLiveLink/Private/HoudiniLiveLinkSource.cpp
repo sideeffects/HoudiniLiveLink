@@ -36,9 +36,6 @@
 #include "Async/Async.h"
 #include "HAL/RunnableThread.h"
 
-#include "HttpModule.h"
-#include "Interfaces/IHttpResponse.h"
-
 #define LOCTEXT_NAMESPACE "HoudiniLiveLinkSource"
 
 #define RECV_BUFFER_SIZE 1024 * 1024

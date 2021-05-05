@@ -199,6 +199,7 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 		if (JsonField.Key.Equals(TEXT("parents"), ESearchCase::IgnoreCase))
 		{
 			// Parents (STATIC DATA) (GetSkeleton)
+			Roots.Empty();
 			StaticData.BoneParents.SetNumUninitialized(ValueArray.Num());
 			for (int BoneIdx = 0; BoneIdx < ValueArray.Num(); BoneIdx++)
 			{
@@ -206,6 +207,7 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 				{
 					// Root Node
 					StaticData.BoneParents[BoneIdx] = -1;
+					Roots.Add(BoneIdx);
 				}					
 				else
 				{
@@ -227,32 +229,6 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 			}
 
 			bStaticDataUpdated = true;
-		}
-		else if (JsonField.Key.Equals(TEXT("vertices"), ESearchCase::IgnoreCase))
-		{
-			// vertices (FRAME DATA) (GetSkeleton)
-			FrameData.Transforms.Init(FTransform::Identity, ValueArray.Num());
-			
-			for (int BoneIdx = 0; BoneIdx < ValueArray.Num(); ++BoneIdx)
-			{
-				const TArray<TSharedPtr<FJsonValue>>& LocationArray = ValueArray[BoneIdx]->AsArray();
-				
-				FVector BoneLocation = FVector::ZeroVector;
-				if (LocationArray.Num() == 3)
-				{
-					double X = LocationArray[0]->AsNumber();
-					double Y = LocationArray[1]->AsNumber();
-					double Z = LocationArray[2]->AsNumber();
-					
-					// Houdini to Unreal: Swap Y/Z, meters to cm
-					BoneLocation = FVector(X, -Y, Z) * TransformScale;
-				}
-
-				// Setup the transform using the location
-				FrameData.Transforms[BoneIdx] = FTransform(FQuat::Identity, BoneLocation, FVector::OneVector);
-			}
-
-			bFrameDataUpdated = true;
 		}
 		else if (JsonField.Key.Equals(TEXT("positions"), ESearchCase::IgnoreCase))
 		{
@@ -304,10 +280,6 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 					double Y = RotationArray[1]->AsNumber();
 					double Z = RotationArray[2]->AsNumber();
 
-					// Houdini to Unreal conversion
-					if (BoneIdx == 0)
-						X += 90.0f;
-
 					HQuat = FQuat::MakeFromEuler(FVector(X, -Y, -Z));
 				}
 				else if (RotationArray.Num() == 4)
@@ -321,6 +293,11 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 				}
 
 				FrameData.Transforms[BoneIdx].SetRotation(HQuat);
+				if (Roots.Contains(BoneIdx))
+				{
+					FTransform rotate(FQuat::MakeFromEuler(FVector(90.0f, 0, 0)));
+					FrameData.Transforms[BoneIdx] = FrameData.Transforms[BoneIdx] * rotate;
+				}
 			}
 
 			bFrameDataUpdated = true;

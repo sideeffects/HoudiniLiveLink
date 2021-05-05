@@ -31,6 +31,7 @@
 #include "HAL/ThreadSafeBool.h"
 #include "IMessageContext.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
+#include "Containers/Set.h"
 
 class FRunnableThread;
 class ILiveLinkClient;
@@ -85,6 +86,7 @@ class HOUDINILIVELINK_API FHoudiniLiveLinkSource : public ILiveLinkSource, publi
 		
 		int NumBones;
 		int NumCurves;
+		TSet<int> Roots;
 
 		// Machine/Port we're connected to
 		FIPv4Endpoint DeviceEndpoint;

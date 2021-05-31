@@ -31,8 +31,7 @@
 #include "HAL/ThreadSafeBool.h"
 #include "IMessageContext.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
-
-#include "Interfaces/IHttpRequest.h"
+#include "Containers/Set.h"
 
 class FRunnableThread;
 class ILiveLinkClient;
@@ -71,12 +70,6 @@ class HOUDINILIVELINK_API FHoudiniLiveLinkSource : public ILiveLinkSource, publi
 
 		bool ProcessResponseData(const FString& ReceivedData);
 
-		void SendGetSkeleton();
-		void SendGetSkeletonPose();
-
-		void OnSkeletonReceived(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded);
-		void OnSkeletonPoseReceived(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded);
-
 	private:
 
 		ILiveLinkClient* Client;
@@ -90,6 +83,10 @@ class HOUDINILIVELINK_API FHoudiniLiveLinkSource : public ILiveLinkSource, publi
 		FText SourceStatus;
 
 		FName SubjectName;
+		
+		int NumBones;
+		int NumCurves;
+		TSet<int> Roots;
 
 		// Machine/Port we're connected to
 		FIPv4Endpoint DeviceEndpoint;

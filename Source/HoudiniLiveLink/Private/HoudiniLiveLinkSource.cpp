@@ -30,12 +30,11 @@
 #include "LiveLinkTypes.h"
 #include "Roles/LiveLinkAnimationRole.h"
 #include "Roles/LiveLinkAnimationTypes.h"
+#include "Common/UdpSocketBuilder.h"
+#include "Sockets.h"
 
 #include "Async/Async.h"
 #include "HAL/RunnableThread.h"
-
-#include "HttpModule.h"
-#include "Interfaces/IHttpResponse.h"
 
 #define LOCTEXT_NAMESPACE "HoudiniLiveLinkSource"
 
@@ -113,6 +112,8 @@ void
 FHoudiniLiveLinkSource::Start()
 {
 	SkeletonSetupNeeded = true;
+	NumBones = -1;
+	NumCurves = -1;
 
 	ThreadName = "Houdini Live Link ";
 	ThreadName.AppendInt(FAsyncThreadIndex::GetNext());
@@ -127,98 +128,39 @@ FHoudiniLiveLinkSource::Stop()
 	SkeletonSetupNeeded = true;
 }
 
+const int BUFFER_SIZE = 65536;
 uint32
 FHoudiniLiveLinkSource::Run()
-{	
-	while (!Stopping)
-	{
-		if (SkeletonSetupNeeded)
-		{
-			SendGetSkeleton();
-		}
-		else
-		{
-			SendGetSkeletonPose();
-		}
+{
+	FUdpSocketBuilder builder("Houdini Live Link Receiver");
+	builder.AsBlocking();
+	builder.AsReusable();
+	builder.BoundToAddress(FIPv4Address::Any);
+	builder.BoundToPort(DeviceEndpoint.Port);
+	builder.WithReceiveBufferSize(BUFFER_SIZE);
 
-		// We want to yield for a bit.
-		FPlatformProcess::SleepNoStats(UpdateFrequency);
+	char buf[BUFFER_SIZE];
+	
+	FSocket* socket = builder.Build();
+	if (socket)
+	{
+		if (socket->GetConnectionState() != ESocketConnectionState::SCS_Connected)
+			return 0;
+		
+		while (!Stopping)
+		{
+			int32 num_read;
+			if (socket->Wait(ESocketWaitConditions::WaitForRead, 100))
+			{
+				socket->Recv((uint8*)buf, BUFFER_SIZE, num_read, ESocketReceiveFlags::None);
+				
+				SkeletonSetupNeeded = !ProcessResponseData(FString(num_read, buf));
+			}
+		}
+		socket->Close();
 	}
 	return 0;
 }
-
-void 
-FHoudiniLiveLinkSource::SendGetSkeleton()
-{
-	// TODO: Create once and store as member? then just call process?
-	FString URL = DeviceEndpoint.ToString() + TEXT("/get_skeleton");
-
-	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
-	HttpRequest->SetVerb("GET");
-	HttpRequest->SetHeader("Content-Type", "application/json");
-	HttpRequest->SetURL(*FString::Printf(TEXT("%s"), *URL));
-	HttpRequest->OnProcessRequestComplete().BindRaw(this, &FHoudiniLiveLinkSource::OnSkeletonReceived);
-
-	HttpRequest->ProcessRequest();
-}
-
-void
-FHoudiniLiveLinkSource::SendGetSkeletonPose()
-{
-	// TODO: Create once and store as member? then just call process?
-	FString URL = DeviceEndpoint.ToString() + TEXT("/get_skeleton_pose");
-
-	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
-	HttpRequest->SetVerb("GET");
-	HttpRequest->SetHeader("Content-Type", "application/json");
-	HttpRequest->SetURL(*FString::Printf(TEXT("%s"), *URL));
-	HttpRequest->OnProcessRequestComplete().BindRaw(this, &FHoudiniLiveLinkSource::OnSkeletonPoseReceived);
-
-	HttpRequest->ProcessRequest();
-}
-
-void 
-FHoudiniLiveLinkSource::OnSkeletonReceived(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
-{
-	if (!bSucceeded || !HttpResponse.IsValid())
-		return;
-
-	if (!EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
-		return;
-
-	// We've already setup the skeleton
-	if (!SkeletonSetupNeeded)
-		return;
-
-	FString ResponseString = HttpResponse->GetContentAsString();
-	if (!ProcessResponseData(ResponseString))
-	{
-		SkeletonSetupNeeded = true;
-	}
-	else
-	{
-		SkeletonSetupNeeded = false;
-	}
-}
-
-void 
-FHoudiniLiveLinkSource::OnSkeletonPoseReceived(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
-{
-	if (!bSucceeded || !HttpResponse.IsValid())
-		return;
-
-	if (!EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
-		return;
-
-	FString ResponseString = HttpResponse->GetContentAsString();
-	if (!ProcessResponseData(ResponseString))
-	{
-		// We have received invalid data
-		// Try to setup the skeleton again
-		SkeletonSetupNeeded = true;
-	}
-}
-
 
 bool 
 FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
@@ -257,6 +199,7 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 		if (JsonField.Key.Equals(TEXT("parents"), ESearchCase::IgnoreCase))
 		{
 			// Parents (STATIC DATA) (GetSkeleton)
+			Roots.Empty();
 			StaticData.BoneParents.SetNumUninitialized(ValueArray.Num());
 			for (int BoneIdx = 0; BoneIdx < ValueArray.Num(); BoneIdx++)
 			{
@@ -264,7 +207,8 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 				{
 					// Root Node
 					StaticData.BoneParents[BoneIdx] = -1;
-				}					
+					Roots.Add(BoneIdx);
+				}
 				else
 				{
 					StaticData.BoneParents[BoneIdx] = (int32)ValueArray[BoneIdx]->AsNumber();
@@ -286,39 +230,11 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 
 			bStaticDataUpdated = true;
 		}
-		else if (JsonField.Key.Equals(TEXT("vertices"), ESearchCase::IgnoreCase))
-		{
-			// vertices (FRAME DATA) (GetSkeleton)
-			FrameData.Transforms.Init(FTransform::Identity, ValueArray.Num());
-			
-			for (int BoneIdx = 0; BoneIdx < ValueArray.Num(); ++BoneIdx)
-			{
-				const TArray<TSharedPtr<FJsonValue>>& LocationArray = ValueArray[BoneIdx]->AsArray();
-				
-				FVector BoneLocation = FVector::ZeroVector;
-				if (LocationArray.Num() == 3)
-				{
-					double X = LocationArray[0]->AsNumber();
-					double Y = LocationArray[1]->AsNumber();
-					double Z = LocationArray[2]->AsNumber();
-					
-					// Houdini to Unreal: Swap Y/Z, meters to cm
-					BoneLocation = FVector(X, -Y, Z) * TransformScale;
-				}
-
-				// Setup the transform using the location
-				FrameData.Transforms[BoneIdx] = FTransform(FQuat::Identity, BoneLocation, FVector::OneVector);
-			}
-
-			bFrameDataUpdated = true;
-		}
 		else if (JsonField.Key.Equals(TEXT("positions"), ESearchCase::IgnoreCase))
 		{
-			/*
 			// Check the validity of the data we received
-			if (ValueArray.Num() != StaticData.BoneNames.Num())
+			if (!SkeletonSetupNeeded && ValueArray.Num() != NumBones)
 				return false;
-			*/
 
 			// positions (FRAME DATA) (GetSkeletonPose)
 			if(FrameData.Transforms.Num() <= 0)
@@ -345,11 +261,9 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 		}
 		else if (JsonField.Key.Equals(TEXT("rotations"), ESearchCase::IgnoreCase))
 		{
-			/*
 			// Check the validity of the data we received
-			if (ValueArray.Num() != StaticData.BoneNames.Num())
-				return false;
-			*/
+			if (!SkeletonSetupNeeded && ValueArray.Num() != NumBones)
+			 	return false;
 
 			// rotations (FRAME DATA) (GetSkeletonPose)
 			if (FrameData.Transforms.Num() <= 0)
@@ -366,10 +280,6 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 					double Y = RotationArray[1]->AsNumber();
 					double Z = RotationArray[2]->AsNumber();
 
-					// Houdini to Unreal conversion
-					if (BoneIdx == 0)
-						X += 90.0f;
-
 					HQuat = FQuat::MakeFromEuler(FVector(X, -Y, -Z));
 				}
 				else if (RotationArray.Num() == 4)
@@ -383,17 +293,20 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 				}
 
 				FrameData.Transforms[BoneIdx].SetRotation(HQuat);
+				if (Roots.Contains(BoneIdx))
+				{
+					FTransform rotate(FQuat::MakeFromEuler(FVector(90.0f, 0, 0)));
+					FrameData.Transforms[BoneIdx] = FrameData.Transforms[BoneIdx] * rotate;
+				}
 			}
 
 			bFrameDataUpdated = true;
 		}
 		else if (JsonField.Key.Equals(TEXT("scales"), ESearchCase::IgnoreCase))
 		{
-			/*
 			// Check the validity of the data we received
-			if (ValueArray.Num() != StaticData.BoneNames.Num())
+			if (!SkeletonSetupNeeded && ValueArray.Num() != NumBones)
 				return false;
-			*/
 
 			// scale (FRAME DATA) (GetSkeletonPose)
 			if (FrameData.Transforms.Num() <= 0)
@@ -419,6 +332,32 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 
 			bFrameDataUpdated = true;
 		}
+		else if (JsonField.Key.Equals(TEXT("blendshape_names"), ESearchCase::IgnoreCase))
+		{
+			StaticData.PropertyNames.Empty(ValueArray.Num());
+
+			for (int i = 0; i < ValueArray.Num(); ++i)
+			{
+				StaticData.PropertyNames.Add(FName(ValueArray[i]->AsString()));
+			}
+
+			bStaticDataUpdated = true;
+		}
+		else if (JsonField.Key.Equals(TEXT("blendshape_values"), ESearchCase::IgnoreCase))
+		{
+			// Check the validity of the data we received
+			if (!SkeletonSetupNeeded && ValueArray.Num() != NumCurves)
+				return false;
+
+			FrameData.PropertyValues.Empty(ValueArray.Num());
+
+			for (int i = 0; i < ValueArray.Num(); ++i)
+			{
+				FrameData.PropertyValues.Add(ValueArray[i]->AsNumber());
+			}
+
+			bFrameDataUpdated = true;
+		}
 	}
 
 	// Make sure the source is still valid before attempting to update the client data
@@ -428,6 +367,8 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 	if (bStaticDataUpdated && SkeletonSetupNeeded)
 	{
 		// Only update the static data if the skeleton setup is required!
+		NumBones = StaticData.BoneNames.Num();
+		NumCurves = StaticData.PropertyNames.Num();
 		Client->PushSubjectStaticData_AnyThread({ SourceGuid, SubjectName }, ULiveLinkAnimationRole::StaticClass(), MoveTemp(StaticDataStruct));
 	}
 

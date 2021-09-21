@@ -295,8 +295,8 @@ FHoudiniLiveLinkSource::ProcessResponseData(const FString& ReceivedData)
 				FrameData.Transforms[BoneIdx].SetRotation(HQuat);
 				if (Roots.Contains(BoneIdx))
 				{
-					FTransform rotate(FQuat::MakeFromEuler(FVector(90.0f, 0, 0)));
-					FrameData.Transforms[BoneIdx] = FrameData.Transforms[BoneIdx] * rotate;
+					//FTransform rotate(FQuat::MakeFromEuler(FVector(90.0f, 0, 0)));
+					//FrameData.Transforms[BoneIdx] = FrameData.Transforms[BoneIdx] * rotate;
 				}
 			}
 

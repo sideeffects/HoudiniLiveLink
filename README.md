@@ -19,5 +19,5 @@ The main LiveLink plugin needs to be enabled as well.
 
 # Compatibility
 
-Binaries and Source Code are available for Unreal 4.25.3.
+Binaries and Source Code are available for Unreal 4.26.2, 5.0EA2.
 The UE4_LiveLink HDA requires Houdini18.5 as it uses KineFX.
